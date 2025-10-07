@@ -1,4 +1,4 @@
-# n8n-nodes-exa
+# n8n-nodes-exa-official
 
 This is an n8n community node that provides integration with the Exa API for intelligent web search and content extraction.
 
@@ -120,7 +120,7 @@ npm link
 
 # In your n8n installation directory
 cd ~/.n8n/custom
-npm link n8n-nodes-exa
+npm link n8n-nodes-exa-official
 
 # Start n8n
 n8n start
