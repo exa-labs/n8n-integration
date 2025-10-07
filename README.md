@@ -1,8 +1,8 @@
 # n8n-nodes-exa-official
 
-This is an n8n community node that provides integration with the Exa API for intelligent web search and content extraction.
+This is an n8n community node that provides integration with the Exa API for intelligent web search, async research, and content extraction.
 
-[Exa](https://exa.ai) is an AI-powered search engine that provides embeddings-based semantic search, content extraction, and AI-powered research capabilities.
+[Exa](https://exa.ai) is an AI-powered search engine that provides embeddings-based semantic search, deep web research, and structured content extraction.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
@@ -36,6 +36,11 @@ This node supports the following Exa API operations:
 
 ### Answer
 - **Get Answer**: Get an AI-generated answer to a query using Exa's research capabilities
+
+### Research
+- **Create Research Task**: Launch a long-running research job powered by Exa Research or Research Pro
+- **Get Research Task**: Poll a specific research task for status, findings, and generated artifacts
+- **List Research Tasks**: Fetch paginated task history for monitoring and auditing
 
 ## Credentials
 
@@ -97,6 +102,17 @@ Exclude Domains: reddit.com
 - GitHub repositories
 - Twitter/LinkedIn profiles
 - Financial reports
+
+### Research Workflow Example
+
+1. Add an Exa node and set **Resource** to `Research` with the **Create Research Task** operation.
+2. Provide a clear research instruction (for example, "Compare emerging open-source RAG frameworks and summarize trade-offs").
+3. Choose the Research product tier (`exa-research` or `exa-research-pro`) and optional guardrails like domain/category allowlists.
+4. Store the returned `id` or use paired nodes (Set/Code) to persist it inside the workflow.
+5. Add another Exa node in the same workflow set to **Get Research Task** and reference the saved `id` to poll results until the status becomes `completed`.
+6. Inspect the response for `insights`, `sources`, `outline`, or generated assets, then continue your workflow (e.g., send a Slack summary or populate a database).
+
+For bulk monitoring, use **List Research Tasks** and apply parameters for pagination, status filtering, or creation date ranges.
 
 ## Resources
 
