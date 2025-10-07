@@ -1,0 +1,51 @@
+{
+  "name": "n8n-nodes-exa",
+  "version": "0.1.0",
+  "description": "n8n node for Exa API - intelligent web search and content extraction",
+  "keywords": [
+    "n8n-community-node-package"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/exa-labs/n8n-integration",
+  "author": {
+    "name": "Exa Labs",
+    "email": "hello@exa.ai"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/exa-labs/n8n-integration.git"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && gulp build:icons",
+    "dev": "tsc --watch",
+    "format": "prettier nodes credentials --write",
+    "lint": "eslint 'nodes/**/*.ts' 'credentials/**/*.ts' package.json",
+    "lintfix": "eslint nodes credentials package.json --fix",
+    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/ExaApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/Exa/Exa.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@typescript-eslint/parser": "^7.15.0",
+    "eslint": "^8.56.0",
+    "eslint-plugin-n8n-nodes-base": "^1.16.1",
+    "gulp": "^4.0.2",
+    "n8n-workflow": "^1.60.0",
+    "prettier": "^3.3.2",
+    "typescript": "^5.5.3"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
+}
