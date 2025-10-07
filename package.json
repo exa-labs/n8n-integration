@@ -15,14 +15,15 @@
     "type": "git",
     "url": "git+https://github.com/exa-labs/n8n-integration.git"
   },
-  "main": "index.js",
+  "main": "dist/nodes/Exa/Exa.node.js",
+  "types": "dist/nodes/Exa/Exa.node.d.ts",
   "scripts": {
-    "build": "tsc && gulp build:icons",
+    "build": "tsc && gulp build:icons && node ./scripts/remove-ds-store.js dist",
     "dev": "tsc --watch",
     "format": "prettier nodes credentials --write",
     "lint": "eslint 'nodes/**/*.ts' 'credentials/**/*.ts' package.json",
     "lintfix": "eslint 'nodes/**/*.ts' 'credentials/**/*.ts' package.json --fix",
-    "prepublishOnly": "npm run build && npm run lint -c .eslintrc.prepublish.js nodes credentials package.json"
+    "prepublishOnly": "npm run lint && npm run build"
   },
   "files": [
     "dist"
