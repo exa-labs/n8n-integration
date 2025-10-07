@@ -23,14 +23,14 @@ export class ExaApi implements ICredentialType {
 		},
 	];
 
-	authenticate = {
+	authenticate: IAuthenticateGeneric = {
 		type: 'generic',
 		properties: {
 			headers: {
 				'x-api-key': '={{$credentials.apiKey}}',
 			},
 		},
-	} as IAuthenticateGeneric;
+	};
 
 	test: ICredentialTestRequest = {
 		request: {
