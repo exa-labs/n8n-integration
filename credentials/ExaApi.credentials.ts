@@ -1,7 +1,7 @@
 import {
 	IAuthenticateGeneric,
+	ICredentialTestRequest,
 	ICredentialType,
-	IHttpRequestMethods,
 	INodeProperties,
 } from 'n8n-workflow';
 
@@ -23,21 +23,20 @@ export class ExaApi implements ICredentialType {
 		},
 	];
 
-	authenticate = {
+	authenticate: IAuthenticateGeneric = {
 		type: 'generic',
 		properties: {
 			headers: {
 				'x-api-key': '={{$credentials.apiKey}}',
 			},
 		},
-	} as IAuthenticateGeneric;
+	};
 
-	test = {
+	test: ICredentialTestRequest = {
 		request: {
 			baseURL: 'https://api.exa.ai',
-			method: 'POST' as IHttpRequestMethods,
+			method: 'POST',
 			url: '/search',
-			json: true,
 			body: {
 				query: 'n8n credential verification',
 				numResults: 1,

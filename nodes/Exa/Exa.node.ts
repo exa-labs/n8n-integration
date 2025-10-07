@@ -33,31 +33,31 @@ export class Exa implements INodeType {
 				name: 'resource',
 				type: 'options',
 				noDataExpression: true,
-				options: [
-					{
-						name: 'Search',
-						value: 'search',
-						description: 'Search the web intelligently',
-					},
-					{
-						name: 'Contents',
-						value: 'contents',
-						description: 'Get contents from URLs',
-					},
-					{
-						name: 'Find Similar',
-						value: 'findSimilar',
-						description: 'Find similar links to a given URL',
-					},
+			options: [
 				{
 					name: 'Answer',
 					value: 'answer',
 					description: 'Get an AI-generated answer to a query',
 				},
 				{
+					name: 'Content',
+					value: 'contents',
+					description: 'Get contents from URLs',
+				},
+				{
+					name: 'Find Similar',
+					value: 'findSimilar',
+					description: 'Find similar links to a given URL',
+				},
+				{
 					name: 'Research',
 					value: 'research',
 					description: 'Create and manage asynchronous research tasks',
+				},
+				{
+					name: 'Search',
+					value: 'search',
+					description: 'Search the web intelligently',
 				},
 			],
 			default: 'search',
@@ -102,7 +102,7 @@ export class Exa implements INodeType {
 					{
 						name: 'Get Contents',
 						value: 'getContents',
-						action: 'Get contents from URLs',
+						action: 'Get contents from ur ls',
 						description: 'Retrieve contents from a list of URLs',
 						routing: {
 							request: {
@@ -514,12 +514,11 @@ export class Exa implements INodeType {
 					displayName: 'Limit',
 					name: 'limit',
 					type: 'number',
-					default: 10,
+					default: 50,
 					typeOptions: {
 						minValue: 1,
-						maxValue: 50,
 					},
-					description: 'Number of results per page (1-50)',
+					description: 'Max number of results to return',
 					routing: {
 						request: {
 							qs: {
@@ -541,171 +540,171 @@ export class Exa implements INodeType {
 					resource: ['search'],
 				},
 			},
-			options: [
-					{
-						displayName: 'Category',
-						name: 'category',
-						type: 'options',
-						options: [
-							{ name: 'Company', value: 'company' },
-							{ name: 'Research Paper', value: 'research paper' },
-							{ name: 'News', value: 'news' },
-							{ name: 'PDF', value: 'pdf' },
-							{ name: 'GitHub', value: 'github' },
-							{ name: 'Tweet', value: 'tweet' },
-							{ name: 'Personal Site', value: 'personal site' },
-							{ name: 'LinkedIn Profile', value: 'linkedin profile' },
-							{ name: 'Financial Report', value: 'financial report' },
-						],
-						default: '',
-						description: 'A data category to focus on',
-						routing: {
-							request: {
-								body: {
-									category: '={{ $value }}',
+		options: [
+				{
+					displayName: 'Category',
+					name: 'category',
+					type: 'options',
+					options: [
+						{ name: 'Company', value: 'company' },
+						{ name: 'Financial Report', value: 'financial report' },
+						{ name: 'GitHub', value: 'github' },
+						{ name: 'LinkedIn Profile', value: 'linkedin profile' },
+						{ name: 'News', value: 'news' },
+						{ name: 'PDF', value: 'pdf' },
+						{ name: 'Personal Site', value: 'personal site' },
+						{ name: 'Research Paper', value: 'research paper' },
+						{ name: 'Tweet', value: 'tweet' },
+					],
+					default: 'company',
+					description: 'A data category to focus on',
+					routing: {
+						request: {
+							body: {
+								category: '={{ $value }}',
+							},
+						},
+					},
+				},
+				{
+					displayName: 'End Published Date',
+					name: 'endPublishedDate',
+					type: 'dateTime',
+					default: '',
+					description: 'Only return links published before this date',
+					routing: {
+						request: {
+							body: {
+								endPublishedDate: '={{ new Date($value).toISOString() }}',
+							},
+						},
+					},
+				},
+				{
+					displayName: 'Exclude Domains',
+					name: 'excludeDomains',
+					type: 'string',
+					default: '',
+					description: 'Comma-separated list of domains to exclude',
+					routing: {
+						send: {
+							preSend: [
+								async function (this, requestOptions) {
+									const domains = this.getNodeParameter('additionalFields.excludeDomains', 0) as string;
+									if (domains) {
+										const domainArray = domains.split(',').map((d) => d.trim());
+										requestOptions.body = {
+											...(requestOptions.body as object),
+											excludeDomains: domainArray,
+										};
+									}
+									return requestOptions;
 								},
-							},
+							],
 						},
 					},
-					{
-						displayName: 'Include Domains',
-						name: 'includeDomains',
-						type: 'string',
-						default: '',
-						description: 'Comma-separated list of domains to include (e.g., arxiv.org, github.com)',
-						routing: {
-							send: {
-								preSend: [
-									async function (this, requestOptions) {
-										const domains = this.getNodeParameter('additionalFields.includeDomains', 0) as string;
-										if (domains) {
-											const domainArray = domains.split(',').map((d) => d.trim());
-											requestOptions.body = {
-												...(requestOptions.body as object),
-												includeDomains: domainArray,
-											};
-										}
-										return requestOptions;
-									},
-								],
-							},
-						},
-					},
-					{
-						displayName: 'Exclude Domains',
-						name: 'excludeDomains',
-						type: 'string',
-						default: '',
-						description: 'Comma-separated list of domains to exclude',
-						routing: {
-							send: {
-								preSend: [
-									async function (this, requestOptions) {
-										const domains = this.getNodeParameter('additionalFields.excludeDomains', 0) as string;
-										if (domains) {
-											const domainArray = domains.split(',').map((d) => d.trim());
-											requestOptions.body = {
-												...(requestOptions.body as object),
-												excludeDomains: domainArray,
-											};
-										}
-										return requestOptions;
-									},
-								],
-							},
-						},
-					},
-					{
-						displayName: 'Start Published Date',
-						name: 'startPublishedDate',
-						type: 'dateTime',
-						default: '',
-						description: 'Only return links published after this date',
-						routing: {
-							request: {
-								body: {
-									startPublishedDate: '={{ new Date($value).toISOString() }}',
+				},
+				{
+					displayName: 'Exclude Text',
+					name: 'excludeText',
+					type: 'string',
+					default: '',
+					description: 'Text that must not be present in webpage (comma-separated, max 5 words each)',
+					routing: {
+						send: {
+							preSend: [
+								async function (this, requestOptions) {
+									const text = this.getNodeParameter('additionalFields.excludeText', 0) as string;
+									if (text) {
+										const textArray = text.split(',').map((t) => t.trim());
+										requestOptions.body = {
+											...(requestOptions.body as object),
+											excludeText: textArray,
+										};
+									}
+									return requestOptions;
 								},
-							},
+							],
 						},
 					},
-					{
-						displayName: 'End Published Date',
-						name: 'endPublishedDate',
-						type: 'dateTime',
-						default: '',
-						description: 'Only return links published before this date',
-						routing: {
-							request: {
-								body: {
-									endPublishedDate: '={{ new Date($value).toISOString() }}',
+				},
+				{
+					displayName: 'Include Domains',
+					name: 'includeDomains',
+					type: 'string',
+					default: '',
+					description: 'Comma-separated list of domains to include (e.g., arxiv.org, github.com)',
+					routing: {
+						send: {
+							preSend: [
+								async function (this, requestOptions) {
+									const domains = this.getNodeParameter('additionalFields.includeDomains', 0) as string;
+									if (domains) {
+										const domainArray = domains.split(',').map((d) => d.trim());
+										requestOptions.body = {
+											...(requestOptions.body as object),
+											includeDomains: domainArray,
+										};
+									}
+									return requestOptions;
 								},
-							},
+							],
 						},
 					},
-					{
-						displayName: 'User Location',
-						name: 'userLocation',
-						type: 'string',
-						default: '',
-						description: 'Two-letter ISO country code (e.g., US, GB)',
-						routing: {
-							request: {
-								body: {
-									userLocation: '={{ $value }}',
+				},
+				{
+					displayName: 'Include Text',
+					name: 'includeText',
+					type: 'string',
+					default: '',
+					description: 'Text that must be present in webpage (comma-separated, max 5 words each)',
+					routing: {
+						send: {
+							preSend: [
+								async function (this, requestOptions) {
+									const text = this.getNodeParameter('additionalFields.includeText', 0) as string;
+									if (text) {
+										const textArray = text.split(',').map((t) => t.trim());
+										requestOptions.body = {
+											...(requestOptions.body as object),
+											includeText: textArray,
+										};
+									}
+									return requestOptions;
 								},
+							],
+						},
+					},
+				},
+				{
+					displayName: 'Start Published Date',
+					name: 'startPublishedDate',
+					type: 'dateTime',
+					default: '',
+					description: 'Only return links published after this date',
+					routing: {
+						request: {
+							body: {
+								startPublishedDate: '={{ new Date($value).toISOString() }}',
 							},
 						},
 					},
-					{
-						displayName: 'Include Text',
-						name: 'includeText',
-						type: 'string',
-						default: '',
-						description: 'Text that must be present in webpage (comma-separated, max 5 words each)',
-						routing: {
-							send: {
-								preSend: [
-									async function (this, requestOptions) {
-										const text = this.getNodeParameter('additionalFields.includeText', 0) as string;
-										if (text) {
-											const textArray = text.split(',').map((t) => t.trim());
-											requestOptions.body = {
-												...(requestOptions.body as object),
-												includeText: textArray,
-											};
-										}
-										return requestOptions;
-									},
-								],
+				},
+				{
+					displayName: 'User Location',
+					name: 'userLocation',
+					type: 'string',
+					default: '',
+					description: 'Two-letter ISO country code (e.g., US, GB)',
+					routing: {
+						request: {
+							body: {
+								userLocation: '={{ $value }}',
 							},
 						},
 					},
-					{
-						displayName: 'Exclude Text',
-						name: 'excludeText',
-						type: 'string',
-						default: '',
-						description: 'Text that must not be present in webpage (comma-separated, max 5 words each)',
-						routing: {
-							send: {
-								preSend: [
-									async function (this, requestOptions) {
-										const text = this.getNodeParameter('additionalFields.excludeText', 0) as string;
-										if (text) {
-											const textArray = text.split(',').map((t) => t.trim());
-											requestOptions.body = {
-												...(requestOptions.body as object),
-												excludeText: textArray,
-											};
-										}
-										return requestOptions;
-									},
-								],
-							},
-						},
-					},
-				],
+				},
+			],
 			},
 			{
 				displayName: 'Contents Options',
@@ -718,87 +717,87 @@ export class Exa implements INodeType {
 						resource: ['search', 'contents', 'findSimilar'],
 					},
 				},
-				options: [
-					{
-						displayName: 'Text',
-						name: 'text',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to include cleaned text from the page',
-						routing: {
-							request: {
-								body: {
-									text: '={{ $value }}',
-								},
+			options: [
+				{
+					displayName: 'Highlights',
+					name: 'highlights',
+					type: 'boolean',
+					default: false,
+					description: 'Whether to include highlighted excerpts',
+					routing: {
+						request: {
+							body: {
+								highlights: '={{ $value }}',
 							},
 						},
 					},
-					{
-						displayName: 'Highlights',
-						name: 'highlights',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to include highlighted excerpts',
-						routing: {
-							request: {
-								body: {
-									highlights: '={{ $value }}',
-								},
+				},
+				{
+					displayName: 'Livecrawl',
+					name: 'livecrawl',
+					type: 'options',
+					options: [
+						{ name: 'Always', value: 'always' },
+						{ name: 'Never', value: 'never' },
+						{ name: 'Fallback', value: 'fallback' },
+					],
+					default: 'fallback',
+					description: 'Whether to crawl the page in real-time',
+					routing: {
+						request: {
+							body: {
+								livecrawl: '={{ $value }}',
 							},
 						},
 					},
-					{
-						displayName: 'Summary',
-						name: 'summary',
-						type: 'boolean',
-						default: false,
-						description: 'Whether to include an AI-generated summary',
-						routing: {
-							request: {
-								body: {
-									summary: '={{ $value }}',
-								},
+				},
+				{
+					displayName: 'Subpages',
+					name: 'subpages',
+					type: 'number',
+					default: 0,
+					typeOptions: {
+						minValue: 0,
+						maxValue: 10,
+					},
+					description: 'Number of subpages to crawl (0-10)',
+					routing: {
+						request: {
+							body: {
+								subpages: '={{ $value }}',
 							},
 						},
 					},
-					{
-						displayName: 'Livecrawl',
-						name: 'livecrawl',
-						type: 'options',
-						options: [
-							{ name: 'Always', value: 'always' },
-							{ name: 'Never', value: 'never' },
-							{ name: 'Fallback', value: 'fallback' },
-						],
-						default: 'fallback',
-						description: 'Whether to crawl the page in real-time',
-						routing: {
-							request: {
-								body: {
-									livecrawl: '={{ $value }}',
-								},
+				},
+				{
+					displayName: 'Summary',
+					name: 'summary',
+					type: 'boolean',
+					default: false,
+					description: 'Whether to include an AI-generated summary',
+					routing: {
+						request: {
+							body: {
+								summary: '={{ $value }}',
 							},
 						},
 					},
-					{
-						displayName: 'Subpages',
-						name: 'subpages',
-						type: 'number',
-						default: 0,
-						typeOptions: {
-							minValue: 0,
-							maxValue: 10,
-						},
-						description: 'Number of subpages to crawl (0-10)',
-						routing: {
-							request: {
-								body: {
-									subpages: '={{ $value }}',
-								},
+				},
+				{
+					displayName: 'Text',
+					name: 'text',
+					type: 'boolean',
+					default: false,
+					description: 'Whether to include cleaned text from the page',
+					routing: {
+						request: {
+							body: {
+								text: '={{ $value }}',
 							},
 						},
 					},
-				],
+				},
+			],
 			},
 		],
 	};
