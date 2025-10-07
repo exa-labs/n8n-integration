@@ -4,11 +4,11 @@ export class Exa implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'Exa',
 		name: 'exa',
-		icon: 'file:exa.svg',
+		icon: 'file:logo.svg',
 		group: ['transform'],
 		version: 1,
 		subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-		description: 'Interact with Exa API for intelligent web search and content extraction',
+		description: 'Semantic web search and research via Exa API',
 		defaults: {
 			name: 'Exa',
 		},
