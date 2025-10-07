@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-exa-official",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "n8n node for Exa API - intelligent web search and content extraction",
   "keywords": [
     "n8n-community-node-package"
