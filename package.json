@@ -1,5 +1,5 @@
 {
-  "name": "@exa/n8n-nodes-exa",
+  "name": "exa-n8n",
   "version": "0.1.0",
   "description": "n8n node for Exa API - intelligent web search and content extraction",
   "keywords": [
