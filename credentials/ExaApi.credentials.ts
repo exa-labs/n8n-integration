@@ -1,6 +1,7 @@
 import {
 	IAuthenticateGeneric,
 	ICredentialType,
+	IHttpRequestMethods,
 	INodeProperties,
 } from 'n8n-workflow';
 
@@ -30,4 +31,17 @@ export class ExaApi implements ICredentialType {
 			},
 		},
 	} as IAuthenticateGeneric;
+
+	test = {
+		request: {
+			baseURL: 'https://api.exa.ai',
+			method: 'POST' as IHttpRequestMethods,
+			url: '/search',
+			json: true,
+			body: {
+				query: 'n8n credential verification',
+				numResults: 1,
+			},
+		},
+	};
 }
