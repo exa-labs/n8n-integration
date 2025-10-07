@@ -49,14 +49,19 @@ export class Exa implements INodeType {
 						value: 'findSimilar',
 						description: 'Find similar links to a given URL',
 					},
-					{
-						name: 'Answer',
-						value: 'answer',
-						description: 'Get an AI-generated answer to a query',
-					},
-				],
-				default: 'search',
-			},
+				{
+					name: 'Answer',
+					value: 'answer',
+					description: 'Get an AI-generated answer to a query',
+				},
+				{
+					name: 'Research',
+					value: 'research',
+					description: 'Create and manage asynchronous research tasks',
+				},
+			],
+			default: 'search',
+		},
 			{
 				displayName: 'Operation',
 				name: 'operation',
@@ -135,52 +140,140 @@ export class Exa implements INodeType {
 				],
 				default: 'findSimilar',
 			},
-			{
-				displayName: 'Operation',
-				name: 'operation',
-				type: 'options',
-				noDataExpression: true,
-				displayOptions: {
-					show: {
-						resource: ['answer'],
-					},
+		{
+			displayName: 'Operation',
+			name: 'operation',
+			type: 'options',
+			noDataExpression: true,
+			displayOptions: {
+				show: {
+					resource: ['answer'],
 				},
-				options: [
-					{
-						name: 'Get Answer',
-						value: 'getAnswer',
-						action: 'Get an AI answer',
-						description: 'Get an AI-generated answer to a query',
-						routing: {
-							request: {
-								method: 'POST',
-								url: '/answer',
-							},
-						},
-					},
-				],
-				default: 'getAnswer',
 			},
-			{
-				displayName: 'Query',
-				name: 'query',
-				type: 'string',
-				required: true,
-				displayOptions: {
-					show: {
-						resource: ['search', 'answer'],
-					},
-				},
-				default: '',
-				description: 'The search query',
-				routing: {
-					request: {
-						body: {
-							query: '={{ $value }}',
+			options: [
+				{
+					name: 'Get Answer',
+					value: 'getAnswer',
+					action: 'Get an AI answer',
+					description: 'Get an AI-generated answer to a query',
+					routing: {
+						request: {
+							method: 'POST',
+							url: '/answer',
 						},
 					},
 				},
+			],
+			default: 'getAnswer',
+		},
+		{
+			displayName: 'Operation',
+			name: 'operation',
+			type: 'options',
+			noDataExpression: true,
+			displayOptions: {
+				show: {
+					resource: ['research'],
+				},
 			},
+			options: [
+				{
+					name: 'Create Task',
+					value: 'createTask',
+					action: 'Create a research task',
+					description: 'Create an asynchronous research task',
+					routing: {
+						request: {
+							method: 'POST',
+							url: '/research/v1',
+						},
+					},
+				},
+				{
+					name: 'Get Task',
+					value: 'getTask',
+					action: 'Get a research task',
+					description: 'Retrieve status and results of a research task',
+					routing: {
+						request: {
+							method: 'GET',
+							url: '=/research/v1/{{ $parameter.researchId }}',
+						},
+					},
+				},
+				{
+					name: 'List Tasks',
+					value: 'listTasks',
+					action: 'List research tasks',
+					description: 'Retrieve a paginated list of research tasks',
+					routing: {
+						request: {
+							method: 'GET',
+							url: '/research/v1',
+						},
+					},
+				},
+			],
+			default: 'createTask',
+		},
+		{
+			displayName: 'Query',
+			name: 'query',
+			type: 'string',
+			required: true,
+			displayOptions: {
+				show: {
+					resource: ['search', 'answer'],
+				},
+			},
+			default: '',
+			description: 'The search query',
+			routing: {
+				request: {
+					body: {
+						query: '={{ $value }}',
+					},
+				},
+			},
+		},
+		{
+			displayName: 'Instructions',
+			name: 'instructions',
+			type: 'string',
+			required: true,
+			displayOptions: {
+				show: {
+					resource: ['research'],
+					operation: ['createTask'],
+				},
+			},
+			default: '',
+			description: 'Instructions for what you would like research on',
+			typeOptions: {
+				rows: 4,
+			},
+			routing: {
+				request: {
+					body: {
+						instructions: '={{ $value }}',
+					},
+				},
+			},
+		},
+		{
+			displayName: 'Research ID',
+			name: 'researchId',
+			type: 'string',
+			required: true,
+			displayOptions: {
+				show: {
+					resource: ['research'],
+					operation: ['getTask'],
+				},
+			},
+			default: '',
+			description: 'The unique identifier of the research request to retrieve',
+		},
 			{
 				displayName: 'URL',
 				name: 'url',
@@ -292,18 +385,163 @@ export class Exa implements INodeType {
 					},
 				},
 			},
-			{
-				displayName: 'Additional Fields',
-				name: 'additionalFields',
-				type: 'collection',
-				placeholder: 'Add Field',
-				default: {},
-				displayOptions: {
-					show: {
-						resource: ['search'],
+		{
+			displayName: 'Additional Options',
+			name: 'additionalOptions',
+			type: 'collection',
+			placeholder: 'Add Option',
+			default: {},
+			displayOptions: {
+				show: {
+					resource: ['research'],
+					operation: ['createTask'],
+				},
+			},
+			options: [
+				{
+					displayName: 'Model',
+					name: 'model',
+					type: 'options',
+					options: [
+						{
+							name: 'Exa Research',
+							value: 'exa-research',
+							description: 'Faster and cheaper',
+						},
+						{
+							name: 'Exa Research Pro',
+							value: 'exa-research-pro',
+							description: 'More thorough analysis and stronger reasoning',
+						},
+					],
+					default: 'exa-research',
+					description: 'Research model to use',
+					routing: {
+						request: {
+							body: {
+								model: '={{ $value }}',
+							},
+						},
 					},
 				},
-				options: [
+				{
+					displayName: 'Output Schema',
+					name: 'outputSchema',
+					type: 'json',
+					default: '',
+					description: 'JSON Schema to enforce structured output',
+					routing: {
+						request: {
+							body: {
+								outputSchema: '={{ JSON.parse($value) }}',
+							},
+						},
+					},
+				},
+			],
+		},
+		{
+			displayName: 'Query Options',
+			name: 'queryOptions',
+			type: 'collection',
+			placeholder: 'Add Option',
+			default: {},
+			displayOptions: {
+				show: {
+					resource: ['research'],
+					operation: ['getTask'],
+				},
+			},
+			options: [
+				{
+					displayName: 'Stream',
+					name: 'stream',
+					type: 'boolean',
+					default: false,
+					description: 'Whether to receive real-time updates via Server-Sent Events (SSE)',
+					routing: {
+						request: {
+							qs: {
+								stream: '={{ $value ? "true" : undefined }}',
+							},
+						},
+					},
+				},
+				{
+					displayName: 'Events',
+					name: 'events',
+					type: 'boolean',
+					default: false,
+					description: 'Whether to include the detailed event log of all operations performed',
+					routing: {
+						request: {
+							qs: {
+								events: '={{ $value ? "true" : undefined }}',
+							},
+						},
+					},
+				},
+			],
+		},
+		{
+			displayName: 'List Options',
+			name: 'listOptions',
+			type: 'collection',
+			placeholder: 'Add Option',
+			default: {},
+			displayOptions: {
+				show: {
+					resource: ['research'],
+					operation: ['listTasks'],
+				},
+			},
+			options: [
+				{
+					displayName: 'Cursor',
+					name: 'cursor',
+					type: 'string',
+					default: '',
+					description: 'The cursor to paginate through the results',
+					routing: {
+						request: {
+							qs: {
+								cursor: '={{ $value }}',
+							},
+						},
+					},
+				},
+				{
+					displayName: 'Limit',
+					name: 'limit',
+					type: 'number',
+					default: 10,
+					typeOptions: {
+						minValue: 1,
+						maxValue: 50,
+					},
+					description: 'Number of results per page (1-50)',
+					routing: {
+						request: {
+							qs: {
+								limit: '={{ $value }}',
+							},
+						},
+					},
+				},
+			],
+		},
+		{
+			displayName: 'Additional Fields',
+			name: 'additionalFields',
+			type: 'collection',
+			placeholder: 'Add Field',
+			default: {},
+			displayOptions: {
+				show: {
+					resource: ['search'],
+				},
+			},
+			options: [
 					{
 						displayName: 'Category',
 						name: 'category',
