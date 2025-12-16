@@ -25,6 +25,7 @@ export class Exa implements INodeType {
 			headers: {
 				Accept: 'application/json',
 				'Content-Type': 'application/json',
+				'x-exa-integration': 'n8n',
 			},
 		},
 		properties: [
