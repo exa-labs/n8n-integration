@@ -720,87 +720,109 @@ export class Exa implements INodeType {
 						resource: ['search', 'contents', 'findSimilar'],
 					},
 				},
-			options: [
-				{
-					displayName: 'Highlights',
-					name: 'highlights',
-					type: 'boolean',
-					default: false,
-					description: 'Whether to include highlighted excerpts',
-					routing: {
-						request: {
-							body: {
-								highlights: '={{ $value }}',
+				routing: {
+					send: {
+						preSend: [
+							async function (this, requestOptions) {
+								const contentsOptions = this.getNodeParameter('contentsOptions', 0, {}) as {
+									text?: boolean;
+									highlights?: boolean;
+									summary?: boolean;
+									livecrawl?: string;
+									subpages?: number;
+									imageLinks?: number;
+								};
+
+								const contents: Record<string, unknown> = {};
+
+								if (contentsOptions.text !== undefined) {
+									contents.text = contentsOptions.text;
+								}
+								if (contentsOptions.highlights !== undefined) {
+									contents.highlights = contentsOptions.highlights;
+								}
+								if (contentsOptions.summary !== undefined) {
+									contents.summary = contentsOptions.summary;
+								}
+								if (contentsOptions.livecrawl !== undefined) {
+									contents.livecrawl = contentsOptions.livecrawl;
+								}
+								if (contentsOptions.subpages !== undefined && contentsOptions.subpages > 0) {
+									contents.subpages = contentsOptions.subpages;
+								}
+								if (contentsOptions.imageLinks !== undefined && contentsOptions.imageLinks > 0) {
+									contents.extras = { imageLinks: contentsOptions.imageLinks };
+								}
+
+								if (Object.keys(contents).length > 0) {
+									requestOptions.body = {
+										...(requestOptions.body as object),
+										contents,
+									};
+								}
+
+								return requestOptions;
 							},
-						},
+						],
 					},
 				},
-				{
-					displayName: 'Livecrawl',
-					name: 'livecrawl',
-					type: 'options',
-					options: [
-						{ name: 'Always', value: 'always' },
-						{ name: 'Never', value: 'never' },
-						{ name: 'Fallback', value: 'fallback' },
-					],
-					default: 'fallback',
-					description: 'Whether to crawl the page in real-time',
-					routing: {
-						request: {
-							body: {
-								livecrawl: '={{ $value }}',
-							},
+				options: [
+					{
+						displayName: 'Highlights',
+						name: 'highlights',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include highlighted excerpts',
+					},
+					{
+						displayName: 'Image Links',
+						name: 'imageLinks',
+						type: 'number',
+						default: 0,
+						typeOptions: {
+							minValue: 0,
+							maxValue: 10,
 						},
+						description: 'Number of image URLs to return per result (0-10)',
 					},
-				},
-				{
-					displayName: 'Subpages',
-					name: 'subpages',
-					type: 'number',
-					default: 0,
-					typeOptions: {
-						minValue: 0,
-						maxValue: 10,
+					{
+						displayName: 'Livecrawl',
+						name: 'livecrawl',
+						type: 'options',
+						options: [
+							{ name: 'Always', value: 'always' },
+							{ name: 'Never', value: 'never' },
+							{ name: 'Fallback', value: 'fallback' },
+						],
+						default: 'fallback',
+						description: 'Whether to crawl the page in real-time',
 					},
-					description: 'Number of subpages to crawl (0-10)',
-					routing: {
-						request: {
-							body: {
-								subpages: '={{ $value }}',
-							},
+					{
+						displayName: 'Subpages',
+						name: 'subpages',
+						type: 'number',
+						default: 0,
+						typeOptions: {
+							minValue: 0,
+							maxValue: 10,
 						},
+						description: 'Number of subpages to crawl (0-10)',
 					},
-				},
-				{
-					displayName: 'Summary',
-					name: 'summary',
-					type: 'boolean',
-					default: false,
-					description: 'Whether to include an AI-generated summary',
-					routing: {
-						request: {
-							body: {
-								summary: '={{ $value }}',
-							},
-						},
+					{
+						displayName: 'Summary',
+						name: 'summary',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include an AI-generated summary',
 					},
-				},
-				{
-					displayName: 'Text',
-					name: 'text',
-					type: 'boolean',
-					default: false,
-					description: 'Whether to include cleaned text from the page',
-					routing: {
-						request: {
-							body: {
-								text: '={{ $value }}',
-							},
-						},
+					{
+						displayName: 'Text',
+						name: 'text',
+						type: 'boolean',
+						default: false,
+						description: 'Whether to include cleaned text from the page',
 					},
-				},
-			],
+				],
 			},
 		],
 	};
