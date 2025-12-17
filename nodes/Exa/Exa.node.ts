@@ -1,4 +1,5 @@
 import { INodeType, INodeTypeDescription } from 'n8n-workflow';
+import packageJson from '../../package.json';
 
 export class Exa implements INodeType {
 	description: INodeTypeDescription = {
@@ -26,7 +27,7 @@ export class Exa implements INodeType {
 				Accept: 'application/json',
 				'Content-Type': 'application/json',
 				'x-exa-integration': 'n8n',
-				'User-Agent': 'exa-n8n 0.1.5',
+				'User-Agent': `exa-n8n ${packageJson.version}`,
 			},
 		},
 		properties: [
