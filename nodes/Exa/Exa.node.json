@@ -1,17 +1,17 @@
 {
-	"node": "n8n-nodes-base.exa",
-	"nodeVersion": "1.0",
+	"node": "n8n-nodes-exa-official.exa",
+	"nodeVersion": "2.0",
 	"codexVersion": "1.0",
-	"categories": ["Data & Storage"],
+	"categories": ["Data & Storage", "Utility"],
 	"resources": {
 		"credentialDocumentation": [
 			{
-				"url": "https://docs.exa.ai/reference/getting-started"
+				"url": "https://exa.ai/docs/reference/getting-started"
 			}
 		],
 		"primaryDocumentation": [
 			{
-				"url": "https://docs.exa.ai/reference/search"
+				"url": "https://exa.ai/docs/reference/search"
 			}
 		]
 	}

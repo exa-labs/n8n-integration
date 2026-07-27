@@ -1,8 +1,6 @@
 # n8n-nodes-exa-official
 
-This is an n8n community node that provides integration with the Exa API for intelligent web search, async research, and content extraction.
-
-[Exa](https://exa.ai) is an AI-powered search engine that provides embeddings-based semantic search, deep web research, and structured content extraction.
+An n8n community node for the [Exa](https://exa.ai) API: web search, content extraction, and research agents. This node is usable both as a regular node and as a tool for an n8n AI Agent.
 
 [n8n](https://n8n.io/) is a [fair-code licensed](https://docs.n8n.io/reference/license/) workflow automation platform.
 
@@ -19,28 +17,35 @@ Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes
 
 ## Operations
 
-This node supports the following Exa API operations:
+### Search — `POST /search`
 
-### Search
-- **Search**: Intelligently search the web with neural or keyword-based search
-  - Supports multiple search types: auto, neural, keyword, fast
-  - Filter by domain, date, category, and text content
-  - Extract page contents (text, highlights, summaries)
-  - Configure livecrawl and subpage crawling
+Semantic web search. Search types: `auto`, `instant`, `fast`, `deep-lite`, `deep`, `deep-reasoning`.
 
-### Contents
-- **Get Contents**: Retrieve cleaned text, highlights, and summaries from a list of URLs
+Output formats:
 
-### Find Similar
-- **Find Similar Links**: Discover pages similar to a given URL
+- **Results** — the ranked list of pages.
+- **Text** — a single written answer synthesised from the results.
+- **Structured (JSON Schema)** — JSON matching a schema you provide.
 
-### Answer
-- **Get Answer**: Get an AI-generated answer to a query using Exa's research capabilities
+Options include category (`company`, `publication`, `news`, `personal site`, `financial report`, `people`), domain and text filters, published-date ranges, additional queries for the deep types, moderation, a system prompt and user location. Content extraction (text, highlights, summary, links, images, `maxAgeHours`, subpages) is available on every search.
 
-### Research
-- **Create Research Task**: Launch a long-running research job powered by Exa Research or Research Pro
-- **Get Research Task**: Poll a specific research task for status, findings, and generated artifacts
-- **List Research Tasks**: Fetch paginated task history for monitoring and auditing
+### Contents — `POST /contents`
+
+Fetch cleaned text, highlights, summaries, links and images for a list of URLs. Per-URL statuses are merged onto the results, so pages that failed to crawl arrive as items carrying `status` and `error` instead of silently disappearing.
+
+### Answer — `POST /answer`
+
+A grounded answer with citations, optionally as JSON matching a schema, optionally including the full text of each citation.
+
+### Agent — `/agent/runs`
+
+Multi-step research, list building and enrichment.
+
+- **Create Run** — start a run, optionally waiting for it to finish by streaming server-sent events or by polling. Supports effort, system prompt, structured output, input rows, metadata, connector data sources and continuation from a previous run.
+- **Get Run** — status and output of a run.
+- **Get Many Runs** — recent runs, with pagination.
+- **Get Run Events** — list a run's events, or hold an SSE connection open and collect them until the run finishes.
+- **Cancel Run** — stop a queued or running run.
 
 ## Credentials
 
@@ -54,65 +59,23 @@ Add the API key to your n8n credentials as "Exa API".
 
 ## Compatibility
 
-- Minimum n8n version: 1.0.0
-- Tested against n8n version: 1.60.0
+- Requires n8n 1.60.0 or newer, and Node.js 20.15 or newer.
+- Tested against n8n 2.32.
 
 ## Usage
 
-### Basic Search Example
+### As an AI Agent tool
 
-1. Add the Exa node to your workflow
-2. Select "Search" as the resource
-3. Enter your search query (e.g., "Latest AI research papers")
-4. Configure search type (auto, neural, keyword, or fast)
-5. Optionally add filters:
-   - Category (research paper, news, company, etc.)
-   - Date range (published date)
-   - Domain filters (include/exclude specific domains)
-   - Text filters (include/exclude specific text)
+Set the node's connection to an **AI Agent** and it appears as a tool. Any parameter can be filled by the model with `{{ $fromAI('query', 'what to search for', 'string') }}`, which makes Search and Answer useful as web-grounding tools for agents.
 
-### Content Extraction
+### Waiting for an agent run
 
-Enable content extraction options:
-- **Text**: Get cleaned page text
-- **Highlights**: Get relevant excerpts
-- **Summary**: Get AI-generated summaries
-- **Livecrawl**: Crawl pages in real-time
-- **Subpages**: Crawl linked subpages
+**Wait for Completion** holds the workflow until the run reaches a terminal state:
 
-### Advanced Features
+- **Stream** keeps one server-sent events connection open and returns the finished run (optionally with every event that led to it).
+- **Poll** re-requests the run on an interval.
 
-**Date Filtering**: Filter results by publication date
-```
-Start Published Date: 2024-01-01
-End Published Date: 2024-12-31
-```
-
-**Domain Control**: Focus on or exclude specific domains
-```
-Include Domains: arxiv.org, github.com
-Exclude Domains: reddit.com
-```
-
-**Category Filtering**: Focus on specific content types
-- Company profiles
-- Research papers
-- News articles
-- PDFs
-- GitHub repositories
-- Twitter/LinkedIn profiles
-- Financial reports
-
-### Research Workflow Example
-
-1. Add an Exa node and set **Resource** to `Research` with the **Create Research Task** operation.
-2. Provide a clear research instruction (for example, "Compare emerging open-source RAG frameworks and summarize trade-offs").
-3. Choose the Research product tier (`exa-research` or `exa-research-pro`) and optional guardrails like domain/category allowlists.
-4. Store the returned `id` or use paired nodes (Set/Code) to persist it inside the workflow.
-5. Add another Exa node in the same workflow set to **Get Research Task** and reference the saved `id` to poll results until the status becomes `completed`.
-6. Inspect the response for `insights`, `sources`, `outline`, or generated assets, then continue your workflow (e.g., send a Slack summary or populate a database).
-
-For bulk monitoring, use **List Research Tasks** and apply parameters for pagination, status filtering, or creation date ranges.
+For long runs, turn **Wait for Completion** off, store the returned `id`, and follow the run later with **Get Run** — the run keeps going server-side.
 
 ## Resources
 
@@ -130,15 +93,12 @@ npm install
 
 # Build the node
 npm run build
+npm run lint
 
-# Link for local testing
-npm link
-
-# In your n8n installation directory
-cd ~/.n8n/custom
-npm link n8n-nodes-exa-official
-
-# Start n8n
+# Install the node in your n8n instance
+mkdir -p ~/.n8n/custom && cd ~/.n8n/custom
+npm init -y
+npm install /path/to/n8n-integration
 n8n start
 ```
 
