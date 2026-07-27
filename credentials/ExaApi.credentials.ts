@@ -1,4 +1,4 @@
-import {
+import type {
 	IAuthenticateGeneric,
 	ICredentialTestRequest,
 	ICredentialType,
@@ -8,7 +8,7 @@ import {
 export class ExaApi implements ICredentialType {
 	name = 'exaApi';
 	displayName = 'Exa API';
-	documentationUrl = 'https://docs.exa.ai/reference/getting-started';
+	documentationUrl = 'https://exa.ai/docs/reference/getting-started';
 	properties: INodeProperties[] = [
 		{
 			displayName: 'API Key',
@@ -39,6 +39,7 @@ export class ExaApi implements ICredentialType {
 			url: '/search',
 			body: {
 				query: 'n8n credential verification',
+				type: 'instant',
 				numResults: 1,
 			},
 		},
