@@ -7,13 +7,19 @@ import type {
 	INode,
 	JsonObject,
 } from 'n8n-workflow';
-import { NodeApiError, jsonParse } from 'n8n-workflow';
-import type { Readable } from 'stream';
+import { NodeApiError, jsonParse, sleep } from 'n8n-workflow';
 
 import packageJson from '../../../../package.json';
 import type { ExaAgentRunEvent } from '../helpers/interfaces';
 
 export const EXA_BASE_URL = 'https://api.exa.ai';
+
+interface ResponseStream {
+	on(event: 'data', listener: (chunk: Buffer | string) => void): void;
+	on(event: 'end', listener: () => void): void;
+	on(event: 'error', listener: (error: Error) => void): void;
+	destroy(): void;
+}
 
 const DOCS_BY_ENDPOINT: Array<[RegExp, string]> = [
 	[/^\/search/, 'https://exa.ai/docs/reference/search'],
@@ -179,13 +185,13 @@ export async function streamEvents(
 	if (Object.keys(body).length) requestOptions.body = body;
 	if (Object.keys(qs).length) requestOptions.qs = qs;
 
-	let response: { body: Readable };
+	let response: { body: ResponseStream };
 	try {
 		response = (await this.helpers.httpRequestWithAuthentication.call(
 			this,
 			'exaApi',
 			requestOptions,
-		)) as { body: Readable };
+		)) as { body: ResponseStream };
 	} catch (error) {
 		throw toNodeApiError(this.getNode(), error, endpoint);
 	}
@@ -201,20 +207,24 @@ export async function streamEvents(
 		const finish = (error?: Error) => {
 			if (settled) return;
 			settled = true;
-			clearInterval(timer);
 			stream.destroy();
 			if (error) reject(error);
 			else resolve();
 		};
 
-		const timer = setInterval(() => {
+		if (timeoutMs) {
+			void sleep(timeoutMs).then(() => {
+				finish(new Error('Timed out while waiting for Exa agent events'));
+			});
+		}
+
+		stream.on('data', (chunk: Buffer | string) => {
 			if (deadline && Date.now() > deadline) {
 				finish(new Error('Timed out while waiting for Exa agent events'));
+				return;
 			}
-		}, 500);
 
-		stream.on('data', (chunk: Buffer) => {
-			buffer += chunk.toString('utf8');
+			buffer += typeof chunk === 'string' ? chunk : chunk.toString('utf8');
 			const blocks = buffer.split('\n\n');
 			buffer = blocks.pop() ?? '';
 
