@@ -1,5 +1,5 @@
 import type { IExecuteFunctions, INodeExecutionData } from 'n8n-workflow';
-import { NodeOperationError } from 'n8n-workflow';
+import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 
 import * as agent from './agent';
 import * as answer from './answer';
@@ -47,7 +47,11 @@ export async function router(this: IExecuteFunctions): Promise<INodeExecutionDat
 				});
 				continue;
 			}
-			throw error;
+			if (error instanceof NodeApiError || error instanceof NodeOperationError) {
+				const nodeError = error;
+				throw nodeError;
+			}
+			throw new NodeOperationError(this.getNode(), error as Error, { itemIndex: i });
 		}
 	}
 

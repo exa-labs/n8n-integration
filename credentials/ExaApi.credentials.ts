@@ -8,6 +8,7 @@ import type {
 export class ExaApi implements ICredentialType {
 	name = 'exaApi';
 	displayName = 'Exa API';
+	icon = 'file:exa.svg' as const;
 	documentationUrl = 'https://exa.ai/docs/reference/getting-started';
 	properties: INodeProperties[] = [
 		{
