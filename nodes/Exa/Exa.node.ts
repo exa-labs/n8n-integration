@@ -12,12 +12,13 @@ export class Exa extends VersionedNodeType {
 			icon: 'file:logo.svg',
 			group: ['transform'],
 			description: 'Search the web, read pages and run research agents with Exa',
-			defaultVersion: 2,
+			defaultVersion: 2.1,
 		};
 
 		const nodeVersions: IVersionedNodeType['nodeVersions'] = {
 			1: new ExaV1(baseDescription),
 			2: new ExaV2(baseDescription),
+			2.1: new ExaV2(baseDescription),
 		};
 
 		super(nodeVersions, baseDescription);
