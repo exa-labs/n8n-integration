@@ -42,6 +42,7 @@ export interface ContentsUiOptions {
 	summaryQuery?: string;
 	maxAgeHours?: number;
 	livecrawlTimeout?: number;
+	snapshotAsOf?: string;
 	subpages?: number;
 	subpageTarget?: string;
 	links?: number;
@@ -77,6 +78,7 @@ export function buildContentsPayload(options: ContentsUiOptions): IDataObject {
 		contents.maxAgeHours = options.maxAgeHours;
 	}
 	if (options.livecrawlTimeout) contents.livecrawlTimeout = options.livecrawlTimeout;
+	if (options.snapshotAsOf) contents.snapshotAsOf = options.snapshotAsOf;
 	if (options.subpages) contents.subpages = options.subpages;
 	if (options.subpageTarget) {
 		const targets = splitList(options.subpageTarget);

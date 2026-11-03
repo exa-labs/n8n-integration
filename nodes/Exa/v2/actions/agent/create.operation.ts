@@ -1,10 +1,11 @@
 import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties } from 'n8n-workflow';
 import { NodeApiError, NodeOperationError, sleep, updateDisplayOptions } from 'n8n-workflow';
 
+import { AgentRunWaitTimeout, pollRun, runIdFromEvents } from '../../helpers/agentRun';
 import type { ExaAgentRun } from '../../helpers/interfaces';
-import { AGENT_TERMINAL_EVENTS, AGENT_TERMINAL_STATUSES } from '../../helpers/interfaces';
+import { AGENT_TERMINAL_EVENTS } from '../../helpers/interfaces';
 import { parseJsonParameter } from '../../helpers/utils';
-import { apiRequest, streamEvents } from '../../transport';
+import { apiReadWithRetry, apiRequest, streamEvents } from '../../transport';
 
 const properties: INodeProperties[] = [
 	{
@@ -90,9 +91,10 @@ const properties: INodeProperties[] = [
 		name: 'timeout',
 		type: 'number',
 		default: 600,
-		typeOptions: { minValue: 10, maxValue: 3600 },
+		typeOptions: { minValue: 10, maxValue: 10800 },
 		displayOptions: { show: { waitForCompletion: [true] } },
-		description: 'How long to wait before giving up on the run',
+		description:
+			'How long to wait before giving up. The run is not cancelled on timeout: the error names its ID so you can collect it with Get Run.',
 	},
 	{
 		displayName: 'Options',
@@ -131,12 +133,22 @@ const properties: INodeProperties[] = [
 				type: 'options',
 				default: 'auto',
 				options: [
-					{ name: 'Auto', value: 'auto' },
-					{ name: 'Extra High', value: 'xhigh' },
-					{ name: 'High', value: 'high' },
-					{ name: 'Low', value: 'low' },
-					{ name: 'Medium', value: 'medium' },
-					{ name: 'Minimal', value: 'minimal' },
+					{
+						name: 'Auto',
+						value: 'auto',
+						description: 'Metered by usage, capped by Max Cost (default $5)',
+					},
+					{ name: 'Extra High', value: 'xhigh', description: 'Fixed price per run' },
+					{ name: 'High', value: 'high', description: 'Fixed price per run' },
+					{ name: 'Low', value: 'low', description: 'Fixed price per run' },
+					{ name: 'Medium', value: 'medium', description: 'Fixed price per run' },
+					{ name: 'Minimal', value: 'minimal', description: 'Fixed price per run' },
+					{
+						name: 'Ultra',
+						value: 'ultra',
+						description:
+							'Exhaustive research and large lists. Metered by usage, capped by Max Cost (default $20).',
+					},
 				],
 				description: 'How much work the agent should put into the run',
 			},
@@ -147,6 +159,24 @@ const properties: INodeProperties[] = [
 				default: '',
 				placeholder: 'e.g. [{"company":"Exa"}]',
 				description: 'Array of records for the agent to research or enrich',
+			},
+			{
+				displayName: 'Max Cost (Dollars)',
+				name: 'maxCostDollars',
+				type: 'number',
+				default: 5,
+				typeOptions: { minValue: 1, maxValue: 100, numberPrecision: 2 },
+				description:
+					'Spend ceiling for the run. Only for the Auto and Ultra efforts; runs that finish early cost less.',
+			},
+			{
+				displayName: 'Max Duration (Seconds)',
+				name: 'maxDurationSeconds',
+				type: 'number',
+				default: 3600,
+				typeOptions: { minValue: 300, maxValue: 10800 },
+				description:
+					'Soft wall-clock ceiling. Only for the Ultra effort; the run returns what it has when time runs out.',
 			},
 			{
 				displayName: 'Metadata (JSON)',
@@ -191,7 +221,11 @@ export async function execute(
 	}
 
 	if (options.systemPrompt) body.systemPrompt = options.systemPrompt;
-	if (options.effort && options.effort !== 'auto') body.effort = options.effort;
+	body.effort = (options.effort as string | undefined) ?? 'auto';
+	const budget: IDataObject = {};
+	if (options.maxCostDollars !== undefined) budget.maxCostDollars = options.maxCostDollars;
+	if (options.maxDurationSeconds !== undefined) budget.maxDurationSeconds = options.maxDurationSeconds;
+	if (Object.keys(budget).length) body.budget = budget;
 	if (options.previousRunId) body.previousRunId = options.previousRunId;
 	if (options.metadata) {
 		body.metadata = parseJsonParameter(
@@ -228,56 +262,87 @@ export async function execute(
 
 	const timeoutMs = (this.getNodeParameter('timeout', i) as number) * 1000;
 	const waitMode = this.getNodeParameter('waitMode', i) as string;
+	const startedAt = Date.now();
+	const deadline = startedAt + timeoutMs;
+	const fetchRun = async (runId: string, until: number) =>
+		(await apiReadWithRetry.call(this, `/agent/runs/${runId}`, until)) as ExaAgentRun;
+	const waitFor = async (runId: string, initial?: ExaAgentRun) => {
+		try {
+			return await pollRun({
+				runId,
+				deadline,
+				startedAt,
+				intervalMs: waitMode === 'poll' ? (this.getNodeParameter('pollInterval', i) as number) * 1000 : 4000,
+				fetchRun,
+				sleep,
+				initial,
+			});
+		} catch (error) {
+			throw runWaitError.call(this, error, runId, i);
+		}
+	};
 
 	if (waitMode === 'stream') {
-		const events = await streamEvents.call(this, '/agent/runs', {
+		const { events, outcome, error } = await streamEvents.call(this, '/agent/runs', {
 			method: 'POST',
 			body,
 			timeoutMs,
 			shouldStop: (event) => AGENT_TERMINAL_EVENTS.includes(event.event ?? ''),
 		});
+		const includeEvents = this.getNodeParameter('includeEvents', i, false) as boolean;
+		const withEvents = (run: ExaAgentRun) => (includeEvents ? { ...run, events } : run);
 
 		const terminal = events.find((event) => AGENT_TERMINAL_EVENTS.includes(event.event ?? ''));
-		if (!terminal) {
+		if (terminal) {
+			return [{ json: withEvents(terminal.data as ExaAgentRun), pairedItem: { item: i } }];
+		}
+
+		const runId = runIdFromEvents(events);
+		if (!runId) {
 			throw new NodeApiError(
 				this.getNode(),
-				{ message: 'The event stream ended before the run finished' },
+				{ message: error?.message ?? 'No events received' },
 				{
-					message: 'The Exa event stream ended before the agent run finished',
+					message: 'The Exa event stream ended before it announced a run ID',
 					description:
-						'Increase Timeout, or turn off Wait for Completion and follow the run with a Get operation.',
+						'The run may still have been created. Check Get Many Runs before creating another one.',
 					itemIndex: i,
 				},
 			);
 		}
+		if (outcome === 'timeout') {
+			throw runWaitError.call(this, new AgentRunWaitTimeout(runId, timeoutMs / 1000), runId, i);
+		}
 
-		const run = terminal.data as ExaAgentRun;
-		const includeEvents = this.getNodeParameter('includeEvents', i, false) as boolean;
-		return [
-			{ json: includeEvents ? { ...run, events } : run, pairedItem: { item: i } },
-		];
+		// The stream closed before the run finished (proxy or network). Follow the same run by polling.
+		return [{ json: withEvents(await waitFor(runId)), pairedItem: { item: i } }];
 	}
 
 	const created = (await apiRequest.call(this, 'POST', '/agent/runs', body)) as ExaAgentRun;
-	const pollIntervalMs = (this.getNodeParameter('pollInterval', i) as number) * 1000;
-	const deadline = Date.now() + timeoutMs;
+	return [{ json: await waitFor(created.id, created), pairedItem: { item: i } }];
+}
 
-	let run = created;
-	while (!AGENT_TERMINAL_STATUSES.includes(run.status)) {
-		if (Date.now() > deadline) {
-			throw new NodeApiError(
-				this.getNode(),
-				{ message: 'Timed out' },
-				{
-					message: `Agent run ${run.id} did not finish within the timeout`,
-					description: 'Increase Timeout, or turn off Wait for Completion and poll with a Get operation.',
-					itemIndex: i,
-				},
-			);
-		}
-		await sleep(pollIntervalMs);
-		run = (await apiRequest.call(this, 'GET', `/agent/runs/${run.id}`)) as ExaAgentRun;
+/** Turns a failed wait into a node error that always names the run to collect. */
+function runWaitError(
+	this: IExecuteFunctions,
+	error: unknown,
+	runId: string,
+	itemIndex: number,
+): Error {
+	if (error instanceof AgentRunWaitTimeout) {
+		return new NodeOperationError(this.getNode(), error.message, {
+			itemIndex,
+			description:
+				'Increase Timeout, or turn off Wait for Completion and follow the run with Get Run.',
+		});
 	}
-
-	return [{ json: run, pairedItem: { item: i } }];
+	const cause = error as Error;
+	return new NodeOperationError(
+		this.getNode(),
+		`Lost track of agent run ${runId} while waiting for it: ${cause.message}`,
+		{
+			itemIndex,
+			description: `The run was created and may still be running. Collect it with Get Run and ID ${runId} instead of creating another run.`,
+		},
+	);
 }
