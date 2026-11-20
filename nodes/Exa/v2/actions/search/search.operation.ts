@@ -100,8 +100,20 @@ const properties: INodeProperties[] = [
 		type: 'collection',
 		placeholder: 'Add Content Option',
 		default: {},
+		displayOptions: { show: { '@version': [2] } },
 		description:
 			'What to extract from each result page. Leave empty to return links and metadata only, which is the cheapest and fastest option.',
+		options: contentsOptions,
+	},
+	{
+		displayName: 'Contents',
+		name: 'contents',
+		type: 'collection',
+		placeholder: 'Add Content Option',
+		default: { highlights: true },
+		displayOptions: { show: { '@version': [{ _cnd: { gte: 2.1 } }] } },
+		description:
+			'What to extract from each result page. Highlights (the most relevant excerpts) suit most workflows and AI agents; remove them to return links and metadata only.',
 		options: contentsOptions,
 	},
 	{

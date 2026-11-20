@@ -1,10 +1,12 @@
 import type {
 	IDataObject,
 	IExecuteFunctions,
+	IHookFunctions,
 	IHttpRequestMethods,
 	IHttpRequestOptions,
 	ILoadOptionsFunctions,
 	INode,
+	IWebhookFunctions,
 	JsonObject,
 } from 'n8n-workflow';
 import { NodeApiError, jsonParse, sleep } from 'n8n-workflow';
@@ -13,6 +15,32 @@ import packageJson from '../../../../package.json';
 import type { ExaAgentRunEvent } from '../helpers/interfaces';
 
 export const EXA_BASE_URL = 'https://api.exa.ai';
+
+type RequestContext = IExecuteFunctions | ILoadOptionsFunctions | IHookFunctions | IWebhookFunctions;
+
+const TRANSIENT_HTTP_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
+const TRANSIENT_NETWORK_CODES = new Set([
+	'ECONNRESET',
+	'ECONNREFUSED',
+	'ECONNABORTED',
+	'ETIMEDOUT',
+	'EAI_AGAIN',
+	'EPIPE',
+]);
+
+/**
+ * How an event stream ended: `stopped` when `shouldStop` matched an event,
+ * `timeout` when the caller's budget ran out, `closed` when the server or the
+ * network ended it first. The events received so far are always returned, so a
+ * caller never loses the run ID it needs to recover.
+ */
+export type StreamOutcome = 'stopped' | 'timeout' | 'closed';
+
+export interface StreamResult {
+	events: ExaAgentRunEvent[];
+	outcome: StreamOutcome;
+	error?: Error;
+}
 
 interface ResponseStream {
 	on(event: 'data', listener: (chunk: Buffer | string) => void): void;
@@ -26,6 +54,7 @@ const DOCS_BY_ENDPOINT: Array<[RegExp, string]> = [
 	[/^\/contents/, 'https://exa.ai/docs/reference/get-contents'],
 	[/^\/answer/, 'https://exa.ai/docs/reference/answer'],
 	[/^\/agent/, 'https://exa.ai/docs/reference/agent-api-guide'],
+	[/^\/monitors/, 'https://exa.ai/docs/reference/monitors'],
 ];
 
 function docsUrl(endpoint: string): string {
@@ -89,14 +118,44 @@ export function parseExaError(body: unknown): { message?: string; code?: string 
 	return {};
 }
 
-export async function apiRequest(
-	this: IExecuteFunctions | ILoadOptionsFunctions,
+/**
+ * Whether a failed request is worth repeating: rate limits, gateway and server
+ * errors, and dropped connections. Client errors (400, 401, 404, ...) are not.
+ */
+export function isTransientError(error: unknown): boolean {
+	const candidate = error as {
+		httpCode?: string | number;
+		statusCode?: number;
+		status?: number;
+		code?: string;
+		response?: { status?: number };
+		cause?: { code?: string; status?: number; response?: { status?: number } };
+	};
+	const status = Number(
+		candidate.httpCode ??
+			candidate.statusCode ??
+			candidate.status ??
+			candidate.response?.status ??
+			candidate.cause?.response?.status ??
+			candidate.cause?.status,
+	);
+	if (Number.isFinite(status) && status > 0) return TRANSIENT_HTTP_CODES.has(status);
+	const code = candidate.code ?? candidate.cause?.code;
+	return code !== undefined && TRANSIENT_NETWORK_CODES.has(code);
+}
+
+/** Exponential backoff for the n-th retry (1-based), capped at 30 seconds. */
+export function retryDelayMs(attempt: number): number {
+	return Math.min(1000 * 2 ** (attempt - 1), 30_000);
+}
+
+function requestOptions(
 	method: IHttpRequestMethods,
 	endpoint: string,
-	body: IDataObject = {},
-	qs: IDataObject = {},
-	options: Partial<IHttpRequestOptions> = {},
-): Promise<IDataObject> {
+	body: IDataObject,
+	qs: IDataObject,
+	options: Partial<IHttpRequestOptions>,
+): IHttpRequestOptions {
 	const requestOptions: IHttpRequestOptions = {
 		method,
 		url: `${EXA_BASE_URL}${endpoint}`,
@@ -112,16 +171,76 @@ export async function apiRequest(
 
 	if (Object.keys(body).length) requestOptions.body = body;
 	if (Object.keys(qs).length) requestOptions.qs = qs;
+	return requestOptions;
+}
 
+export async function apiRequest(
+	this: RequestContext,
+	method: IHttpRequestMethods,
+	endpoint: string,
+	body: IDataObject = {},
+	qs: IDataObject = {},
+	options: Partial<IHttpRequestOptions> = {},
+): Promise<IDataObject> {
 	try {
 		return (await this.helpers.httpRequestWithAuthentication.call(
 			this,
 			'exaApi',
-			requestOptions,
+			requestOptions(method, endpoint, body, qs, options),
 		)) as IDataObject;
 	} catch (error) {
 		throw toNodeApiError(this.getNode(), error, endpoint);
 	}
+}
+
+/**
+ * A read that is repeated with backoff on transient failures until `deadline`
+ * (epoch ms). Only for idempotent requests: a retried create could start a
+ * second billable run.
+ */
+export async function apiReadWithRetry(
+	this: IExecuteFunctions,
+	endpoint: string,
+	deadline: number,
+	qs: IDataObject = {},
+): Promise<IDataObject> {
+	for (let attempt = 1; ; attempt++) {
+		try {
+			return (await this.helpers.httpRequestWithAuthentication.call(
+				this,
+				'exaApi',
+				requestOptions('GET', endpoint, {}, qs, {}),
+			)) as IDataObject;
+		} catch (error) {
+			const delay = retryDelayMs(attempt);
+			if (!isTransientError(error) || Date.now() + delay > deadline) {
+				throw toNodeApiError(this.getNode(), error, endpoint);
+			}
+			await sleep(delay);
+		}
+	}
+}
+
+/**
+ * Reads a cursor-paginated list endpoint (`{ data, hasMore, nextCursor }`)
+ * until `limit` items are collected or the list ends.
+ */
+export async function getAllPages(
+	this: IExecuteFunctions,
+	endpoint: string,
+	limit: number,
+	qs: IDataObject = {},
+): Promise<IDataObject[]> {
+	const items: IDataObject[] = [];
+	let cursor: string | undefined;
+	do {
+		const page: IDataObject = { ...qs, limit: Math.min(100, limit - items.length) };
+		if (cursor) page.cursor = cursor;
+		const response = await apiRequest.call(this, 'GET', endpoint, {}, page);
+		items.push(...((response.data as IDataObject[]) ?? []));
+		cursor = response.hasMore ? (response.nextCursor as string) : undefined;
+	} while (cursor && items.length < limit);
+	return items.slice(0, limit);
 }
 
 export function parseEventBlock(block: string): ExaAgentRunEvent | undefined {
@@ -166,7 +285,7 @@ export async function streamEvents(
 		timeoutMs?: number;
 		shouldStop?: (event: ExaAgentRunEvent) => boolean;
 	} = {},
-): Promise<ExaAgentRunEvent[]> {
+): Promise<StreamResult> {
 	const requestOptions: IHttpRequestOptions = {
 		method,
 		url: `${EXA_BASE_URL}${endpoint}`,
@@ -200,27 +319,24 @@ export async function streamEvents(
 	const stream = response.body;
 	const deadline = timeoutMs ? Date.now() + timeoutMs : undefined;
 
-	await new Promise<void>((resolve, reject) => {
+	return await new Promise<StreamResult>((resolve) => {
 		let buffer = '';
 		let settled = false;
 
-		const finish = (error?: Error) => {
+		const finish = (outcome: StreamOutcome, error?: Error) => {
 			if (settled) return;
 			settled = true;
 			stream.destroy();
-			if (error) reject(error);
-			else resolve();
+			resolve({ events, outcome, ...(error ? { error } : {}) });
 		};
 
 		if (timeoutMs) {
-			void sleep(timeoutMs).then(() => {
-				finish(new Error('Timed out while waiting for Exa agent events'));
-			});
+			void sleep(timeoutMs).then(() => finish('timeout'));
 		}
 
 		stream.on('data', (chunk: Buffer | string) => {
 			if (deadline && Date.now() > deadline) {
-				finish(new Error('Timed out while waiting for Exa agent events'));
+				finish('timeout');
 				return;
 			}
 
@@ -233,12 +349,10 @@ export async function streamEvents(
 				if (event === undefined) continue;
 
 				events.push(event);
-				if (shouldStop?.(event)) finish();
+				if (shouldStop?.(event)) finish('stopped');
 			}
 		});
-		stream.on('end', () => finish());
-		stream.on('error', (error: Error) => finish(error));
+		stream.on('end', () => finish('closed'));
+		stream.on('error', (error: Error) => finish('closed', error));
 	});
-
-	return events;
 }

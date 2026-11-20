@@ -1,7 +1,7 @@
 {
   "name": "n8n-nodes-exa-official",
-  "version": "0.4.1",
-  "description": "n8n node for the Exa API - web search, content extraction, and research agents",
+  "version": "0.5.0",
+  "description": "n8n node for the Exa API - web search, content extraction, research agents and web monitors",
   "keywords": [
     "n8n-community-node-package"
   ],
@@ -25,6 +25,7 @@
     "dev": "tsc --watch",
     "format": "prettier nodes credentials --write",
     "lint": "eslint nodes credentials package.json",
+    "test": "npm run build && node --test test/*.test.js",
     "lintfix": "eslint nodes credentials package.json --fix",
     "lint:prepublish": "eslint -c .eslintrc.prepublish.js nodes credentials package.json",
     "prepublishOnly": "npm run build && npm run lint:prepublish",
@@ -40,7 +41,8 @@
       "dist/credentials/ExaApi.credentials.js"
     ],
     "nodes": [
-      "dist/nodes/Exa/Exa.node.js"
+      "dist/nodes/Exa/Exa.node.js",
+      "dist/nodes/ExaTrigger/ExaTrigger.node.js"
     ]
   },
   "devDependencies": {

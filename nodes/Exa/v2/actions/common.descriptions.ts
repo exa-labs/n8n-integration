@@ -63,6 +63,14 @@ export const contentsOptions: INodeProperties[] = [
 			'Freshness control. Use cached content up to this age, 0 to always crawl live, -1 for cache only.',
 	},
 	{
+		displayName: 'Snapshot As Of',
+		name: 'snapshotAsOf',
+		type: 'dateTime',
+		default: '',
+		description:
+			'Return each page as Exa stored it at or before this date-time instead of the live page. Pages with no stored version by then are reported as failed. Cannot be combined with Max Age.',
+	},
+	{
 		displayName: 'Subpage Target',
 		name: 'subpageTarget',
 		type: 'string',

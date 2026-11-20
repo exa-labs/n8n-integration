@@ -1,0 +1,18 @@
+{
+	"node": "n8n-nodes-exa-official.exaTrigger",
+	"nodeVersion": "1.0",
+	"codexVersion": "1.0",
+	"categories": ["Data & Storage", "Utility"],
+	"resources": {
+		"credentialDocumentation": [
+			{
+				"url": "https://exa.ai/docs/reference/getting-started"
+			}
+		],
+		"primaryDocumentation": [
+			{
+				"url": "https://exa.ai/docs/reference/monitors"
+			}
+		]
+	}
+}

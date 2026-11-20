@@ -1,5 +1,5 @@
 import type { IDataObject, IExecuteFunctions, INodeExecutionData, INodeProperties } from 'n8n-workflow';
-import { updateDisplayOptions } from 'n8n-workflow';
+import { NodeOperationError, updateDisplayOptions } from 'n8n-workflow';
 
 import { runIdField } from './common.descriptions';
 import { AGENT_TERMINAL_EVENTS } from '../../helpers/interfaces';
@@ -65,11 +65,24 @@ export async function execute(
 
 	if (stream) {
 		const lastEventId = this.getNodeParameter('lastEventId', i, '') as string;
-		const events = await streamEvents.call(this, `/agent/runs/${runId}/events`, {
+		const { events, outcome } = await streamEvents.call(this, `/agent/runs/${runId}/events`, {
 			timeoutMs: (this.getNodeParameter('timeout', i) as number) * 1000,
 			headers: lastEventId ? { 'Last-Event-ID': lastEventId } : {},
 			shouldStop: (event) => AGENT_TERMINAL_EVENTS.includes(event.event ?? ''),
 		});
+		if (outcome !== 'stopped') {
+			const last = events[events.length - 1]?.id ?? lastEventId;
+			throw new NodeOperationError(
+				this.getNode(),
+				`The event stream for ${runId} ${outcome === 'timeout' ? 'timed out' : 'closed'} before the run finished, after ${events.length} events`,
+				{
+					itemIndex: i,
+					description: last
+						? `Run this operation again with After Event ID set to ${last} to continue where it stopped.`
+						: 'Run this operation again to continue.',
+				},
+			);
+		}
 		return events.map((event) => ({ json: event, pairedItem: { item: i } }));
 	}
 

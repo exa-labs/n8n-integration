@@ -26,3 +26,6 @@ jobs:
 
       - name: Lint
         run: npm run release:check
+
+      - name: Test
+        run: node --test test/*.test.js

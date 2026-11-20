@@ -4,6 +4,7 @@ import { NodeApiError, NodeOperationError } from 'n8n-workflow';
 import * as agent from './agent';
 import * as answer from './answer';
 import * as contents from './contents';
+import * as monitor from './monitor';
 import * as search from './search';
 
 type OperationExecute = (this: IExecuteFunctions, i: number) => Promise<INodeExecutionData[]>;
@@ -18,6 +19,16 @@ const operations: Record<string, Record<string, OperationExecute>> = {
 	},
 	answer: { get: answer.get.execute },
 	contents: { get: contents.get.execute },
+	monitor: {
+		create: monitor.create.execute,
+		delete: monitor.deleteMonitor.execute,
+		get: monitor.get.execute,
+		getMany: monitor.getMany.execute,
+		getRun: monitor.getRun.execute,
+		getRuns: monitor.getRuns.execute,
+		trigger: monitor.trigger.execute,
+		update: monitor.update.execute,
+	},
 	search: { search: search.search.execute },
 };
 

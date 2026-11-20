@@ -4,6 +4,7 @@ import { NodeConnectionTypes } from 'n8n-workflow';
 import * as agent from './agent';
 import * as answer from './answer';
 import * as contents from './contents';
+import * as monitor from './monitor';
 import * as search from './search';
 
 export const versionDescription: INodeTypeDescription = {
@@ -11,9 +12,9 @@ export const versionDescription: INodeTypeDescription = {
 	name: 'exa',
 	icon: 'file:logo.svg',
 	group: ['transform'],
-	version: 2,
+	version: [2, 2.1],
 	subtitle: '={{$parameter["operation"] + ": " + $parameter["resource"]}}',
-	description: 'Search the web, read pages and run research agents with Exa',
+	description: 'Search the web, read pages, run research agents and monitor the web with Exa',
 	defaults: { name: 'Exa' },
 	usableAsTool: true,
 	inputs: [NodeConnectionTypes.Main],
@@ -33,6 +34,11 @@ export const versionDescription: INodeTypeDescription = {
 				},
 				{ name: 'Answer', value: 'answer', description: 'Answer a question from live sources' },
 				{ name: 'Content', value: 'contents', description: 'Read the contents of URLs' },
+				{
+					name: 'Monitor',
+					value: 'monitor',
+					description: 'Run a search on a schedule and get new results by webhook',
+				},
 				{ name: 'Search', value: 'search', description: 'Search the web' },
 			],
 			default: 'search',
@@ -40,6 +46,7 @@ export const versionDescription: INodeTypeDescription = {
 		...agent.description,
 		...answer.description,
 		...contents.description,
+		...monitor.description,
 		...search.description,
 	],
 };
