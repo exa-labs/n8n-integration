@@ -58,7 +58,7 @@ test('buildMonitorTrigger maps schedules to interval triggers', () => {
 		period: '3d',
 	});
 	assert.equal(monitor.buildMonitorTrigger('none'), null);
-	assert.equal(monitor.buildMonitorTrigger('custom', ''), null);
+	assert.throws(() => monitor.buildMonitorTrigger('custom', ' '), /Custom Interval is required/);
 });
 
 test('buildMonitorSearch leaves unset fields to Exa defaults', () => {

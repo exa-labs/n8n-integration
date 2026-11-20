@@ -31,7 +31,7 @@ const properties: INodeProperties[] = [
 				type: 'string',
 				default: '',
 				placeholder: 'e.g. 3d',
-				description: `${customPeriodDescription} Used when Schedule is Custom Interval`,
+				description: `${customPeriodDescription} Used when Schedule is Custom Interval or not set`,
 			},
 			{
 				displayName: 'Exclude Domains',
@@ -121,8 +121,11 @@ export async function execute(this: IExecuteFunctions, i: number): Promise<INode
 
 	if (fields.name !== undefined) body.name = fields.name;
 	if (fields.status !== undefined) body.status = fields.status;
-	if (fields.schedule !== undefined) {
-		body.trigger = buildMonitorTrigger(fields.schedule as string, fields.customPeriod as string);
+	// A Custom Interval on its own implies the custom schedule.
+	const schedule =
+		(fields.schedule as string | undefined) ?? (fields.customPeriod ? 'custom' : undefined);
+	if (schedule !== undefined) {
+		body.trigger = buildMonitorTrigger(schedule, fields.customPeriod as string | undefined);
 	}
 
 	const search: IDataObject = {};

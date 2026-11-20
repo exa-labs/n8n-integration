@@ -167,7 +167,7 @@ const properties: INodeProperties[] = [
 				default: 5,
 				typeOptions: { minValue: 1, maxValue: 100, numberPrecision: 2 },
 				description:
-					'Spend ceiling for the run. Only for the Auto and Ultra efforts; runs that finish early cost less.',
+					'Spend ceiling for the run. For Auto and Ultra it caps the total cost (runs that finish early cost less); for the fixed-price efforts it caps contact enrichment and must cover the fixed price.',
 			},
 			{
 				displayName: 'Max Duration (Seconds)',
@@ -224,7 +224,19 @@ export async function execute(
 	body.effort = (options.effort as string | undefined) ?? 'auto';
 	const budget: IDataObject = {};
 	if (options.maxCostDollars !== undefined) budget.maxCostDollars = options.maxCostDollars;
-	if (options.maxDurationSeconds !== undefined) budget.maxDurationSeconds = options.maxDurationSeconds;
+	if (options.maxDurationSeconds !== undefined) {
+		if (body.effort !== 'ultra') {
+			throw new NodeOperationError(
+				this.getNode(),
+				'Max Duration only applies to the Ultra effort',
+				{
+					itemIndex: i,
+					description: 'Set Effort to Ultra, or remove Max Duration.',
+				},
+			);
+		}
+		budget.maxDurationSeconds = options.maxDurationSeconds;
+	}
 	if (Object.keys(budget).length) body.budget = budget;
 	if (options.previousRunId) body.previousRunId = options.previousRunId;
 	if (options.metadata) {

@@ -43,11 +43,13 @@ export function buildMonitorSearch(input: MonitorSearchInput): IDataObject {
 
 /**
  * The monitor `trigger` for a schedule choice: an interval such as `1d`, or
- * `null` for a monitor that only runs when triggered by hand.
+ * `null` for a monitor that only runs when triggered by hand. A custom
+ * schedule without an interval throws rather than turning the monitor manual.
  */
 export function buildMonitorTrigger(schedule: string, customPeriod?: string): IDataObject | null {
+	if (schedule === 'none') return null;
 	const period = schedule === 'custom' ? customPeriod?.trim() : schedule;
-	if (!period || schedule === 'none') return null;
+	if (!period) throw new Error('Custom Interval is required when Schedule is Custom Interval');
 	return { type: 'interval', period };
 }
 
